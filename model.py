@@ -5,6 +5,8 @@ from torch import nn
 from torch.autograd import Variable
 import torch.nn.functional as F
 
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
 
 class Encoder(nn.Module):
     def __init__(self, input_size, embed_size, hidden_size,
@@ -95,7 +97,7 @@ class Seq2Seq(nn.Module):
         batch_size = src.size(1)
         max_len = trg.size(0)
         vocab_size = self.decoder.output_size
-        outputs = Variable(torch.zeros(max_len, batch_size, vocab_size)).cuda()
+        outputs = Variable(torch.zeros(max_len, batch_size, vocab_size)).to(device)
 
         encoder_output, hidden = self.encoder(src)
         hidden = hidden[:self.decoder.n_layers]
@@ -106,5 +108,5 @@ class Seq2Seq(nn.Module):
             outputs[t] = output
             is_teacher = random.random() < teacher_forcing_ratio
             top1 = output.data.max(1)[1]
-            output = Variable(trg.data[t] if is_teacher else top1).cuda()
+            output = Variable(trg.data[t] if is_teacher else top1).to(device)
         return outputs

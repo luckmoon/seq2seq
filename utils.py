@@ -1,12 +1,13 @@
 import re
 import spacy
+# from torchtext.legacy.data import Field, BucketIterator
 from torchtext.data import Field, BucketIterator
 from torchtext.datasets import Multi30k
 
 
 def load_dataset(batch_size):
-    spacy_de = spacy.load('de')
-    spacy_en = spacy.load('en')
+    spacy_de = spacy.load('de_core_news_sm')
+    spacy_en = spacy.load('en_core_web_sm')
     url = re.compile('(<url>.*</url>)')
 
     def tokenize_de(text):

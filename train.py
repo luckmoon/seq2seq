@@ -9,6 +9,8 @@ from torch.nn import functional as F
 from model import Encoder, Decoder, Seq2Seq
 from utils import load_dataset
 
+device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
 
 def parse_arguments():
     p = argparse.ArgumentParser(description='Hyperparams')
@@ -31,12 +33,12 @@ def evaluate(model, val_iter, vocab_size, DE, EN):
         for b, batch in enumerate(val_iter):
             src, len_src = batch.src
             trg, len_trg = batch.trg
-            src = src.data.cuda()
-            trg = trg.data.cuda()
+            src = src.data.to(device)
+            trg = trg.data.to(device)
             output = model(src, trg, teacher_forcing_ratio=0.0)
             loss = F.nll_loss(output[1:].view(-1, vocab_size),
-                                   trg[1:].contiguous().view(-1),
-                                   ignore_index=pad)
+                              trg[1:].contiguous().view(-1),
+                              ignore_index=pad)
             total_loss += loss.data.item()
         return total_loss / len(val_iter)
 
@@ -48,12 +50,12 @@ def train(e, model, optimizer, train_iter, vocab_size, grad_clip, DE, EN):
     for b, batch in enumerate(train_iter):
         src, len_src = batch.src
         trg, len_trg = batch.trg
-        src, trg = src.cuda(), trg.cuda()
+        src, trg = src.to(device), trg.to(device)
         optimizer.zero_grad()
         output = model(src, trg)
         loss = F.nll_loss(output[1:].view(-1, vocab_size),
-                               trg[1:].contiguous().view(-1),
-                               ignore_index=pad)
+                          trg[1:].contiguous().view(-1),
+                          ignore_index=pad)
         loss.backward()
         clip_grad_norm_(model.parameters(), grad_clip)
         optimizer.step()
@@ -70,7 +72,7 @@ def main():
     args = parse_arguments()
     hidden_size = 512
     embed_size = 256
-    assert torch.cuda.is_available()
+    # assert torch.cuda.is_available()
 
     print("[!] preparing dataset...")
     train_iter, val_iter, test_iter, DE, EN = load_dataset(args.batch_size)
@@ -85,12 +87,12 @@ def main():
                       n_layers=2, dropout=0.5)
     decoder = Decoder(embed_size, hidden_size, en_size,
                       n_layers=1, dropout=0.5)
-    seq2seq = Seq2Seq(encoder, decoder).cuda()
+    seq2seq = Seq2Seq(encoder, decoder).to(device)
     optimizer = optim.Adam(seq2seq.parameters(), lr=args.lr)
     print(seq2seq)
 
     best_val_loss = None
-    for e in range(1, args.epochs+1):
+    for e in range(1, args.epochs + 1):
         train(e, seq2seq, optimizer, train_iter,
               en_size, args.grad_clip, DE, EN)
         val_loss = evaluate(seq2seq, val_iter, en_size, DE, EN)
